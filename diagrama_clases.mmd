@@ -1,0 +1,61 @@
+classDiagram
+    class Lead {
+        +UUID id
+        +UUID clienteId
+        +UUID vehiculoId
+        +Number anticipo
+        +Boolean solicitaFinanciacion
+        +String nombreContacto
+        +String telefonoContacto
+        +Integer puntaje
+        +Date creadoEn
+        +tomar()
+        +derivar()
+        +descartar()
+    }
+
+    class Permuta {
+        +Boolean tienePermuta
+        +String descripcion
+        +Number valorDeclarado
+    }
+
+    class Ubicacion {
+        +String provincia
+        +String localidad
+    }
+    
+    class NivelCalificacion {
+        <<enumeration>>
+        NO_POTABLE
+        POTABLE
+        MUY_POTABLE
+    }
+
+    class EstadoLead {
+        <<interface>>
+        +tomar(lead: Lead)
+        +derivar(lead: Lead)
+        +descartar(lead: Lead)
+    }
+
+    class Pendiente { }
+    class Calificado { }
+    class EnGestion { }
+    class Derivado { }
+    class Descartado { }
+
+    %% Relaciones de Composición (El lead contiene esta información)
+    Lead *-- "1" Permuta : incluye
+    Lead *-- "1" Ubicacion : pertenece a
+    
+    %% Relaciones de Asociación
+    Lead --> "0..1" NivelCalificacion : nivel
+    Lead --> "1" EstadoLead : estado actual
+
+    %% Implementaciones del Patrón State
+    EstadoLead <|-- Pendiente
+    EstadoLead <|-- Calificado
+    EstadoLead <|-- EnGestion
+    EstadoLead <|-- Derivado
+    EstadoLead <|-- Descartado

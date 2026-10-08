@@ -1,0 +1,11 @@
+#---config---#
+fastapi
+uvicorn
+python-dotenv
+
+#---schemas---#
+pydantic
+pydantic[email]
+
+#---database---#
+SQLAlchemy

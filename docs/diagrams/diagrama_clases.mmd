@@ -7,6 +7,7 @@ classDiagram
         +Boolean solicitaFinanciacion
         +String nombreContacto
         +String telefonoContacto
+        +NivelCalificacion nivel
         +Integer puntaje
         +Date creadoEn
         +tomar()
@@ -24,7 +25,7 @@ classDiagram
         +String provincia
         +String localidad
     }
-    
+
     class NivelCalificacion {
         <<enumeration>>
         NO_POTABLE
@@ -45,17 +46,24 @@ classDiagram
     class Derivado { }
     class Descartado { }
 
-    %% Relaciones de Composición (El lead contiene esta información)
-    Lead *-- "1" Permuta : incluye
+    %% Value objects contenidos en Lead
+    Lead *-- "0..1" Permuta : incluye
     Lead *-- "1" Ubicacion : pertenece a
-    
-    %% Relaciones de Asociación
-    Lead --> "0..1" NivelCalificacion : nivel
-    Lead --> "1" EstadoLead : estado actual
 
-    %% Implementaciones del Patrón State
+    %% El nivel es un enum del dominio de Lead
+    Lead ..> NivelCalificacion : usa
+
+    %% Patrón State
+    Lead --> "1" EstadoLead : estado actual
     EstadoLead <|-- Pendiente
     EstadoLead <|-- Calificado
     EstadoLead <|-- EnGestion
     EstadoLead <|-- Derivado
     EstadoLead <|-- Descartado
+
+    %% Transiciones válidas del ciclo de vida (Figura 6)
+    Pendiente --> Calificado : calificacion publica LeadCalificado
+    Calificado --> EnGestion : tomar()
+    Calificado --> Descartado : descartar()
+    EnGestion --> Derivado : derivar() [ficha completa]
+    EnGestion --> Descartado : descartar()

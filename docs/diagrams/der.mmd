@@ -1,56 +1,25 @@
 erDiagram
-    %% Entidades de negocio principales
-    CLIENTE ||--o{ LEAD : "genera / posee"
-    LEAD ||--o| PERMUTA : "puede incluir"
-
-    %% Catálogos referenciados por el lead
-    LEAD }o--|| UBICACION : "se registra en"
-    LEAD }o--|| ESTADO_LEAD : "tiene estado"
-    LEAD }o--o| NIVEL_CALIFICACION : "recibe calificación"
-
-    CLIENTE {
+    %% Base de datos del servicio leads
+    %% Cliente y Vehiculo son referencias externas (UUIDs), no tablas propias
+    LEAD {
         UUID id PK
-        string nombre
-        string apellido
-        string email
-        string telefono
-        string cuil
-        boolean consentimiento
-    }
-
-    LEAD{
-        UUID id PK
-        UUID cliente_id FK
-        int permuta_id FK
-        int ubicacion_id FK
-        int nivel_id FK
-        int estado_id FK
-        UUID vehiculo_id
+        UUID cliente_id "referencia externa al servicio clientes"
+        UUID vehiculo_id "referencia externa al servicio vehiculos"
 
         float anticipo
         boolean solicita_financiacion
+        boolean ficha_completa
         int puntaje
-        Date creado_en
-    }
+        string nivel
+        string estado
 
-    PERMUTA{
-        int id PK
-        string descripcion
-        float valor_declarado
-    }
-
-    UBICACION {
-        int id PK
         string provincia
         string localidad
-    }
 
-    NIVEL_CALIFICACION {
-        int id PK
-        string nombre UK
-    }
+        boolean permuta_tiene
+        string permuta_descripcion
+        float permuta_valor_declarado
+        boolean permuta_computable
 
-    ESTADO_LEAD {
-        int id PK
-        string nombre
+        DateTime creado_en
     }

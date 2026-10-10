@@ -69,21 +69,18 @@ docker build -t leads-microservice:latest .
 docker run -p 8000:8000 --env-file .env leads-microservice:latest
 ```
 
-### Ejecutar con docker-compose (ejemplo)
+### Ejecutar con docker-compose
 
-```yaml
-version: "3.8"
-services:
-  leads:
-    build: .
-    ports:
-      - "8000:8000"
-    env_file:
-      - .env
-    depends_on:
-      - db
-      - kafka
+El repositorio incluye un `docker-compose.yml` con PostgreSQL, Kafka (más Zookeeper) y el propio microservicio.
+
+```bash
+cp .env.example .env
+docker compose up --build
 ```
+
+La API estará en `http://localhost:8000`.
+
+> Nota: en `.env.example` la variable `KAFKA_ENABLED` está en `true`, ya que Docker Compose levanta un broker Kafka. Para correr solo el servicio local sin Kafka, usá `KAFKA_ENABLED=false`.
 
 ## Endpoints principales
 

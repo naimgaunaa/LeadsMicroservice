@@ -7,6 +7,7 @@ from app.model.nombre_estados import NombreEstados
 from app.model.nivel_calificacion import NivelCalificacion
 
 from app.schemas import CrearLeadDTO, LeadDetalleDTO
+from app.services.estado_lead import cambiar_estado_lead
 
 router = APIRouter(
     prefix="/leads"
@@ -41,5 +42,28 @@ async def obtener_detalle_lead(
     return lead
 
 @router.patch("/{id_lead}/state")
-async def cambiar_estado_lead(id_lead):
-    pass
+async def cambiar_estado_lead(
+    id_lead:UUID,
+    nuevo_estado: NombreEstados,
+    db = Depends(get_db)
+):
+    lead = db.query(Lead).filter(Lead.id == id_lead).first()
+
+    if not lead:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Lead no encontrado",
+        )
+
+    try:
+        cambiar_estado_lead(lead, nuevo_estado)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    
+    db.commit()
+    db.refresh(lead)
+
+    return {"message": "Estado del lead actualizado correctamente."}

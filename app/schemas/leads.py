@@ -2,27 +2,27 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional
 from uuid import UUID
 
-class ClientDTO(BaseModel):
-    name: str
-    last_name : str
+class ClienteDTO(BaseModel):
+    nombre: str
+    apellido: str
     email: EmailStr
-    phone: str
+    telefono: str
     cuil: str
-    consent: bool
+    consentimiento: bool
 
 class PermutaDTO(BaseModel):
-    have_permuta: bool
-    description: Optional[str] = None
-    declareted_value: Optional[float] = None
+    tiene_permuta: bool
+    descripcion: Optional[str] = None
+    valor_declarado: Optional[float] = None
 
-class LocationDTO(BaseModel):
-    province: str
-    place: str
+class UbicacionDTO(BaseModel):
+    provincia: str
+    localidad: str
 
-class CreateLeadDTO(BaseModel):
-    client: ClientDTO
-    vehicle_id: UUID
-    advance: float
+class CrearLeadDTO(BaseModel):
+    cliente: ClienteDTO
+    vehiculo_id: UUID
+    anticipo: float
     permuta: PermutaDTO
-    Location: LocationDTO
-    apply_for_funding: bool
+    ubicacion: UbicacionDTO
+    solicita_financiacion: bool

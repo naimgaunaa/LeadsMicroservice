@@ -1,3 +1,3 @@
-from app.schemas.leads import ClientDTO, CreateLeadDTO, LocationDTO, PermutaDTO
+from app.schemas.leads import ClienteDTO, CrearLeadDTO, PermutaDTO, UbicacionDTO
 
-__all__ = ["ClientDTO", "CreateLeadDTO", "LocationDTO", "PermutaDTO"]
+__all__ = ["ClienteDTO", "CrearLeadDTO", "PermutaDTO", "UbicacionDTO"]

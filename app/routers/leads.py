@@ -1,22 +1,22 @@
 from fastapi import APIRouter
-from app.schemas import ClientDTO, CreateLeadDTO
+from app.schemas import CrearLeadDTO
 
 router = APIRouter(
     prefix="/leads"
 )
 
 @router.post("")
-async def send_preform(body: CreateLeadDTO):
+async def crear_preformulario(datos: CrearLeadDTO):
     pass
 
 @router.get("")
-async def queque_telemarketer(estado: str, nivel: str):
+async def obtener_cola_telemarketing(estado: str, nivel: str):
     pass
 
-@router.get("/{lead_id}")
-async def panel_detail(lead_id):
+@router.get("/{id_lead}")
+async def obtener_detalle_lead(id_lead):
     pass
 
-@router.patch("/{lead_id}/state")
-async def change_state_lead(lead_id):
+@router.patch("/{id_lead}/state")
+async def cambiar_estado_lead(id_lead):
     pass

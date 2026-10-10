@@ -1,4 +1,5 @@
 classDiagram
+    %% --- Catálogos y enumeraciones ---
     class NivelCalificacion {
         <<enumeration>>
         NO_POTABLE
@@ -19,7 +20,7 @@ classDiagram
     class Derivado { }
     class Descartado { }
 
-    %%---patron state---%%
+    %% --- Patrón State ---
     EstadoLead <|-- Pendiente
     EstadoLead <|-- Calificado
     EstadoLead <|-- EnGestion
@@ -31,3 +32,56 @@ classDiagram
     Calificado ..> Descartado
     EnGestion ..> Derivado
     EnGestion ..> Descartado
+
+    %% --- Entidades de negocio del servicio leads ---
+    class Cliente {
+        +UUID id
+        +String nombre
+        +String apellido
+        +String email
+        +String telefono
+        +String cuil
+        +boolean consentimiento
+    }
+
+    class Ubicacion {
+        +int id
+        +String provincia
+        +String localidad
+    }
+
+    class Permuta {
+        +int id
+        +String descripcion
+        +float valorDeclarado
+        +boolean computable
+    }
+
+    class Vehiculo {
+        +UUID id
+        +String marca
+        +String modelo
+        +int anio
+        +int kilometraje
+        +float precio
+        +boolean disponible
+    }
+
+    class Lead {
+        +UUID id
+        +float anticipo
+        +boolean solicitaFinanciacion
+        +boolean fichaCompleta
+        +int puntaje
+        +NivelCalificacion nivel
+        +EstadoLead estado
+        +DateTime creadoEn
+    }
+
+    %% --- Relaciones derivadas del DER y del documento ---
+    Cliente "1" -- "0..*" Lead : "genera / posee"
+    Lead "1" --> "1" Ubicacion : "se registra en"
+    Lead "1" --> "0..1" Permuta : "puede incluir"
+    Lead "1" --> "1" Vehiculo : "unidad de interes"
+    Lead "1" --> "1" EstadoLead : "tiene estado"
+    Lead "1" --> "0..1" NivelCalificacion : "recibe calificacion"

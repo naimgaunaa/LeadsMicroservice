@@ -12,3 +12,6 @@ aiokafka
 
 #---database---#
 SQLAlchemy
+
+#---http-client---#
+httpx

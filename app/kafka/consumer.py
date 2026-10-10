@@ -4,7 +4,11 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from aiokafka import AIOKafkaConsumer
+from app.database import SessionLocal
 from app.kafka.config import kafka_settings
+from app.model import Lead
+from app.model.nivel_calificacion import NivelCalificacion
+from app.model.nombre_estados import NombreEstados
 
 logger = logging.getLogger(__name__)
 
@@ -28,17 +32,28 @@ async def handle_lead_calificado(message_value: dict) -> None:
         origen,
     )
 
-    # TODO: actualizar el lead en la base de datos.
-    # Ejemplo conceptual:
-    # lead_repository.update_calificacion(
-    #     lead_id=lead_id,
-    #     nivel=nivel,
-    #     puntaje=puntaje,
-    #     origen=origen,
-    #     motivos=motivos,
-    #     estado="CALIFICADO",
-    #     calculada_en=datetime.now(timezone.utc),
-    # )
+    db = SessionLocal()
+    try:
+        lead = db.query(Lead).filter(Lead.id == lead_id).first()
+        if lead:
+            lead.nivel = nivel
+            lead.puntaje = puntaje
+            lead.estado = NombreEstados.CALIFICADO.value
+            db.commit()
+            logger.info(
+                "Lead actualizado: leadId=%s nivel=%s puntaje=%s",
+                lead_id,
+                nivel,
+                puntaje,
+            )
+        else:
+            logger.warning("Lead no encontrado para actualizar: leadId=%s", lead_id)
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Error actualizando lead %s: %s", lead_id, exc)
+        raise
+    finally:
+        db.close()
 
 
 async def consume_messages(consumer: AIOKafkaConsumer) -> None:

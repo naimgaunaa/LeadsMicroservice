@@ -2,36 +2,64 @@ import os
 from uuid import UUID
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.database import get_db
 from app.kafka import publish_preformulario_completado
 from app.model import Lead
 from app.model.nombre_estados import NombreEstados
 from app.model.nivel_calificacion import NivelCalificacion
-from app.schemas import CrearLeadDTO, LeadDetalleDTO
+from app.schemas import (
+    CrearLeadDTO,
+    LeadCreadoResponse,
+    LeadDetalleDTO,
+    MensajeResponse,
+)
 from app.services.estado_lead import cambiar_estado_lead as cambiar_estado_lead_service
 
-router = APIRouter(prefix="/leads")
+router = APIRouter(
+    prefix="/leads",
+    tags=["Leads"],
+)
 
 CLIENTES_URL = os.getenv("CLIENTES_URL", "http://localhost:8001")
 
 
-@router.post("", status_code=status.HTTP_202_ACCEPTED)
+@router.post(
+    "",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=LeadCreadoResponse,
+    summary="Crear preformulario de lead",
+    description="""
+Recibe los datos del preformulario, crea el cliente en el microservicio de
+**Clientes**, persiste el lead en estado `PENDIENTE` con nivel
+`SIN_CALIFICACION` y publica el evento `PreformularioCompletado` en Kafka
+para que el servicio de scoring continúe el proceso de forma asíncrona.
+
+**Flujo de negocio:**
+1. POST al microservicio de Clientes → obtiene `cliente_id`.
+2. Crea el lead en la base de datos (`PENDIENTE` / `SIN_CALIFICACION`).
+3. Publica en Kafka el evento `PreformularioCompletado`.
+4. Responde `202 Accepted` con el `leadId` generado.
+
+El análisis crediticio (BCRA) se procesa de forma asíncrona y el lead se
+actualiza cuando llega el resultado vía Kafka.
+""",
+    responses={
+        status.HTTP_202_ACCEPTED: {
+            "description": "Preformulario aceptado y en procesamiento.",
+            "model": LeadCreadoResponse,
+        },
+        status.HTTP_502_BAD_GATEWAY: {
+            "description": "El microservicio de Clientes rechazó la creación del cliente.",
+        },
+    },
+)
 async def crear_preformulario(
     datos: CrearLeadDTO,
     db=Depends(get_db),
 ):
-    """
-    La logica de negocio de este enpoint es la siguiente:
-    1. hago post al microservicio de clientes como indica documentacion -> recibo 201 con id_cliente
-    2. creo el lead en la base de datos con estado PENDIENTE y nivel de calificacion SIN_CALIFICACION
-    3. envio a api BCRA /CentralDeDeudores/v1.0/Deudas/cuil (solo numeros del cuil, viene en string con guiones) -> me quedo del resultado 200 results.periodos.entidades[0].situacion
-    3. envio con kafka el preformulario completado
-    4. envio 202 (accepted) al cliente
-    5. recibo de kafka el resultado del analisis de BCRA y actualizo el lead con el nivel de calificacion correspondiente
-    6. actualizo lead
-    """
+    """Crea un nuevo preformulario de lead de forma asíncrona."""
     # 1. Crear el cliente en el microservicio de clientes
     async with httpx.AsyncClient() as client:
         cliente_payload = datos.cliente.model_dump()
@@ -77,13 +105,30 @@ async def crear_preformulario(
     )
 
     # 4. Responder 202 Accepted con el leadId
-    return {"leadId": str(nuevo_lead.id)}
+    return LeadCreadoResponse(lead_id=str(nuevo_lead.id))
 
 
-@router.get("", response_model=list[LeadDetalleDTO])
+@router.get(
+    "",
+    response_model=list[LeadDetalleDTO],
+    summary="Obtener cola de telemarketing",
+    description="""
+Devuelve la lista de leads filtrada por **estado** y **nivel de
+calificación**. Este endpoint alimenta la cola de trabajo de telemarketing.
+""",
+    response_description="Lista de leads que coinciden con los filtros.",
+)
 async def obtener_cola_telemarketing(
-    estado: NombreEstados,
-    nivel: NivelCalificacion,
+    estado: NombreEstados = Query(
+        ...,
+        description="Estado actual del lead.",
+        examples=["PENDIENTE"],
+    ),
+    nivel: NivelCalificacion = Query(
+        ...,
+        description="Nivel de calificación crediticia del lead.",
+        examples=["SIN_CALIFICACION"],
+    ),
     db=Depends(get_db),
 ):
     leads = (
@@ -94,7 +139,15 @@ async def obtener_cola_telemarketing(
     return leads
 
 
-@router.get("/{id_lead}", response_model=LeadDetalleDTO)
+@router.get(
+    "/{id_lead}",
+    response_model=LeadDetalleDTO,
+    summary="Obtener detalle de un lead",
+    description="Devuelve toda la información persistida del lead identificado por `id_lead`.",
+    responses={
+        status.HTTP_404_NOT_FOUND: {"description": "No existe un lead con ese ID."},
+    },
+)
 async def obtener_detalle_lead(
     id_lead: UUID,
     db=Depends(get_db),
@@ -110,10 +163,28 @@ async def obtener_detalle_lead(
     return lead
 
 
-@router.patch("/{id_lead}/state")
+@router.patch(
+    "/{id_lead}/state",
+    response_model=MensajeResponse,
+    summary="Actualizar estado de un lead",
+    description="""
+Cambia el estado del lead respetando la máquina de estados definida en el
+servicio. Si la transición no es válida se devuelve `400 Bad Request`.
+""",
+    responses={
+        status.HTTP_400_BAD_REQUEST: {
+            "description": "La transición de estado solicitada no es válida.",
+        },
+        status.HTTP_404_NOT_FOUND: {"description": "No existe un lead con ese ID."},
+    },
+)
 async def actualizar_estado_lead(
     id_lead: UUID,
-    nuevo_estado: NombreEstados,
+    nuevo_estado: NombreEstados = Query(
+        ...,
+        description="Nuevo estado al que se quiere transicionar el lead.",
+        examples=["EN_GESTION"],
+    ),
     db=Depends(get_db),
 ):
     lead = db.query(Lead).filter(Lead.id == id_lead).first()

@@ -48,3 +48,27 @@ class LeadDetalleDTO(BaseModel):
     permuta_valor_declarado: Optional[float] = None
     permuta_computable: Optional[bool] = None
     creado_en: datetime
+
+
+class LeadCreadoResponse(BaseModel):
+    """Respuesta al crear un preformulario."""
+
+    lead_id: str
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {"lead_id": "e6e4be8d-cc1c-4f6c-bcd0-b2c8be5af5e0"}
+        }
+    }
+
+
+class MensajeResponse(BaseModel):
+    """Respuesta genérica con mensaje."""
+
+    message: str
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {"message": "Estado del lead actualizado correctamente."}
+        }
+    }

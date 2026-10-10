@@ -1,31 +1,4 @@
 classDiagram
-    class Lead {
-        +UUID id
-        +UUID clienteId
-        +UUID vehiculoId
-        +Number anticipo
-        +Boolean solicitaFinanciacion
-        +String nombreContacto
-        +String telefonoContacto
-        +NivelCalificacion nivel
-        +Integer puntaje
-        +Date creadoEn
-        +tomar()
-        +derivar()
-        +descartar()
-    }
-
-    class Permuta {
-        +Boolean tienePermuta
-        +String descripcion
-        +Number valorDeclarado
-    }
-
-    class Ubicacion {
-        +String provincia
-        +String localidad
-    }
-
     class NivelCalificacion {
         <<enumeration>>
         NO_POTABLE
@@ -46,24 +19,15 @@ classDiagram
     class Derivado { }
     class Descartado { }
 
-    %% Value objects contenidos en Lead
-    Lead *-- "0..1" Permuta : incluye
-    Lead *-- "1" Ubicacion : pertenece a
-
-    %% El nivel es un enum del dominio de Lead
-    Lead ..> NivelCalificacion : usa
-
-    %% Patrón State
-    Lead --> "1" EstadoLead : estado actual
+    %%---patron state---%%
     EstadoLead <|-- Pendiente
     EstadoLead <|-- Calificado
     EstadoLead <|-- EnGestion
     EstadoLead <|-- Derivado
     EstadoLead <|-- Descartado
 
-    %% Transiciones válidas del ciclo de vida (Figura 6)
-    Pendiente --> Calificado : calificacion publica LeadCalificado
-    Calificado --> EnGestion : tomar()
-    Calificado --> Descartado : descartar()
-    EnGestion --> Derivado : derivar() [ficha completa]
-    EnGestion --> Descartado : descartar()
+    Pendiente ..> Calificado
+    Calificado ..> EnGestion
+    Calificado ..> Descartado
+    EnGestion ..> Derivado
+    EnGestion ..> Descartado

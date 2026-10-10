@@ -7,5 +7,8 @@ python-dotenv
 pydantic
 pydantic[email]
 
+#---kafka---#
+aiokafka
+
 #---database---#
 SQLAlchemy

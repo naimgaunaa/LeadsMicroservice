@@ -1,6 +1,7 @@
-from pydantic import BaseModel, EmailStr
+from datetime import datetime
 from typing import Optional
 from uuid import UUID
+from pydantic import BaseModel, ConfigDict, EmailStr
 
 class ClienteDTO(BaseModel):
     nombre: str
@@ -26,3 +27,24 @@ class CrearLeadDTO(BaseModel):
     permuta: PermutaDTO
     ubicacion: UbicacionDTO
     solicita_financiacion: bool
+
+
+class LeadDetalleDTO(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    cliente_id: UUID
+    vehiculo_id: UUID
+    anticipo: float
+    solicita_financiacion: bool
+    ficha_completa: bool
+    puntaje: Optional[int] = None
+    nivel: Optional[str] = None
+    estado: str
+    provincia: Optional[str] = None
+    localidad: Optional[str] = None
+    permuta_tiene: bool
+    permuta_descripcion: Optional[str] = None
+    permuta_valor_declarado: Optional[float] = None
+    permuta_computable: Optional[bool] = None
+    creado_en: datetime

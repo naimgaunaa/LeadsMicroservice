@@ -16,6 +16,12 @@ class KafkaSettings:
     client_id: Optional[str] = None
 
 
+def _parse_bool(value: Optional[str], default: bool = False) -> bool:
+    if value is None:
+        return default
+    return value.strip().lower() in {"true", "1", "yes", "on"}
+
+
 kafka_settings = KafkaSettings(
     bootstrap_servers=os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"),
     topic_preformulario_completado=os.getenv(
@@ -27,3 +33,5 @@ kafka_settings = KafkaSettings(
     consumer_group_id=os.getenv("KAFKA_CONSUMER_GROUP", "leads-service"),
     client_id=os.getenv("KAFKA_CLIENT_ID", "leads-microservice"),
 )
+
+kafka_enabled = _parse_bool(os.getenv("KAFKA_ENABLED"), default=True)

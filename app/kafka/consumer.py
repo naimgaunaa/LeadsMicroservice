@@ -5,7 +5,7 @@ from typing import Optional
 
 from aiokafka import AIOKafkaConsumer
 from app.database import SessionLocal
-from app.kafka.config import kafka_settings
+from app.kafka.config import kafka_enabled, kafka_settings
 from app.model import Lead
 from app.model.nivel_calificacion import NivelCalificacion
 from app.model.nombre_estados import NombreEstados
@@ -72,6 +72,9 @@ async def consume_messages(consumer: AIOKafkaConsumer) -> None:
 
 async def start_consumer() -> None:
     global _consumer, _consumer_task
+    if not kafka_enabled:
+        logger.info("Kafka deshabilitado: consumer no iniciado.")
+        return
     if _consumer is not None:
         return
 

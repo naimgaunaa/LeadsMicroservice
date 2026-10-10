@@ -1,10 +1,13 @@
 import json
+import logging
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Optional
 
 from aiokafka import AIOKafkaProducer
-from app.kafka.config import kafka_settings
+from app.kafka.config import kafka_enabled, kafka_settings
+
+logger = logging.getLogger(__name__)
 
 _producer: Optional[AIOKafkaProducer] = None
 
@@ -23,8 +26,10 @@ def build_event_envelope(
     }
 
 
-async def get_producer() -> AIOKafkaProducer:
+async def get_producer() -> Optional[AIOKafkaProducer]:
     global _producer
+    if not kafka_enabled:
+        return None
     if _producer is None:
         _producer = AIOKafkaProducer(
             bootstrap_servers=kafka_settings.bootstrap_servers,
@@ -43,6 +48,13 @@ async def publish_event(
     correlation_id: Optional[str] = None,
 ) -> None:
     producer = await get_producer()
+    if producer is None:
+        logger.info(
+            "Kafka deshabilitado: evento %s para topic %s no publicado.",
+            event_type,
+            topic,
+        )
+        return
     message = build_event_envelope(event_type, payload, correlation_id)
     await producer.send_and_wait(topic, key=key.encode("utf-8"), value=message)
 

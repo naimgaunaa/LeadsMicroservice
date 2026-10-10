@@ -13,7 +13,7 @@ class ClientDTO(BaseModel):
 class PermutaDTO(BaseModel):
     have_permuta: bool
     description: Optional[str] = None
-    declareted_value: Optional[str] = None
+    declareted_value: Optional[float] = None
 
 class LocationDTO(BaseModel):
     province: str

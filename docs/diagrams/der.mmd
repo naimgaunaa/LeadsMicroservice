@@ -1,0 +1,55 @@
+erDiagram
+    %% Entidades de negocio principales
+    CLIENT ||--o{ LEAD : "genera / posee"
+    LEAD ||--o| PERMUTA : "puede incluir"
+
+    %% Catálogos referenciados por el lead
+    LEAD }o--|| LOCATION : "se registra en"
+    LEAD }o--|| STATE : "tiene estado"
+    LEAD }o--o| LEVEL : "recibe calificación"
+
+    CLIENT {
+        UUID id PK
+        string name
+        string last_name
+        string email
+        string phone
+        string cuil
+        boolean consent
+    }
+
+    LEAD{
+        UUID id PK
+        UUID client_id FK
+        int permuta_id FK
+        int location_id FK
+        int level_id FK
+        int state_id FK
+        UUID vehicle_id
+
+        float advance
+        boolean apply_forfunding
+        int calification
+    }
+
+    PERMUTA{
+        int id PK
+        string description
+        float value
+    }
+
+    LOCATION {
+        int id PK
+        string province
+        string place
+    }
+
+    LEVEL {
+        int id PK
+        string name UK
+    }
+
+    STATE {
+        int id PK
+        string name
+    }

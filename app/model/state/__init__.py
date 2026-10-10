@@ -1,5 +1,5 @@
 from app.model.state.estadoLead import EstadoLead
-from app.model.state.nombreEstados import NombreEstados
+from app.model.nombre_estados import NombreEstados
 from app.model.state.pendiente import Pendiente
 from app.model.state.calificado import Calificado
 from app.model.state.enGestion import EnGestion

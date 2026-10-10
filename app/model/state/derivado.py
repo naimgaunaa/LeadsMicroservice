@@ -1,5 +1,5 @@
 from app.model.state.estadoLead import EstadoLead
-from app.model.state.nombreEstados import NombreEstados
+from app.model.nombre_estados import NombreEstados
 
 class Derivado(EstadoLead):
     def calificar(self):

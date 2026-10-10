@@ -1,6 +1,6 @@
 from app.model.state.estadoLead import EstadoLead
 from app.model.state.enGestion import EnGestion
-from app.model.state.nombreEstados import NombreEstados
+from app.model.nombre_estados import NombreEstados
 
 class Calificado(EstadoLead):
     def calificar(self):

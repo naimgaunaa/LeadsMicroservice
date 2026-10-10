@@ -1,35 +1,40 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from app.database import get_db
-
 from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, status
+
+from app.database import get_db
 from app.model import Lead
 from app.model.nombre_estados import NombreEstados
 from app.model.nivel_calificacion import NivelCalificacion
-
 from app.schemas import CrearLeadDTO, LeadDetalleDTO
-from app.services.estado_lead import cambiar_estado_lead
+from app.services.estado_lead import cambiar_estado_lead as cambiar_estado_lead_service
 
-router = APIRouter(
-    prefix="/leads"
-)
+router = APIRouter(prefix="/leads")
+
 
 @router.post("")
 async def crear_preformulario(datos: CrearLeadDTO):
     pass
 
+
 @router.get("", response_model=list[LeadDetalleDTO])
 async def obtener_cola_telemarketing(
     estado: NombreEstados,
     nivel: NivelCalificacion,
-    db = Depends(get_db)
+    db=Depends(get_db),
 ):
-    leads = db.query(Lead).filter(Lead.estado == estado.value, Lead.nivel == nivel.value).all()
+    leads = (
+        db.query(Lead)
+        .filter(Lead.estado == estado.value, Lead.nivel == nivel.value)
+        .all()
+    )
     return leads
+
 
 @router.get("/{id_lead}", response_model=LeadDetalleDTO)
 async def obtener_detalle_lead(
-    id_lead: UUID, 
-    db = Depends(get_db)
+    id_lead: UUID,
+    db=Depends(get_db),
 ):
     lead = db.query(Lead).filter(Lead.id == id_lead).first()
 
@@ -41,11 +46,12 @@ async def obtener_detalle_lead(
 
     return lead
 
+
 @router.patch("/{id_lead}/state")
-async def cambiar_estado_lead(
-    id_lead:UUID,
+async def actualizar_estado_lead(
+    id_lead: UUID,
     nuevo_estado: NombreEstados,
-    db = Depends(get_db)
+    db=Depends(get_db),
 ):
     lead = db.query(Lead).filter(Lead.id == id_lead).first()
 
@@ -56,13 +62,13 @@ async def cambiar_estado_lead(
         )
 
     try:
-        cambiar_estado_lead(lead, nuevo_estado)
-    except ValueError as e:
+        cambiar_estado_lead_service(lead, nuevo_estado)
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
-    
+            detail=str(exc),
+        ) from exc
+
     db.commit()
     db.refresh(lead)
 

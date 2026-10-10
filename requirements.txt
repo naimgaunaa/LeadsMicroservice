@@ -1,0 +1,17 @@
+#---config---#
+fastapi
+uvicorn
+python-dotenv
+
+#---schemas---#
+pydantic
+pydantic[email]
+
+#---kafka---#
+aiokafka
+
+#---database---#
+SQLAlchemy
+
+#---http-client---#
+httpx

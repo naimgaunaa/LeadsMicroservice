@@ -1,8 +1,10 @@
+import logging
 import os
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi.responses import JSONResponse
 
 from app.database import get_db
 from app.kafka import publish_preformulario_completado
@@ -17,12 +19,124 @@ from app.schemas import (
 )
 from app.services.estado_lead import cambiar_estado_lead as cambiar_estado_lead_service
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(
     prefix="/leads",
     tags=["Leads"],
 )
 
-CLIENTES_URL = os.getenv("CLIENTES_URL", "http://localhost:8001")
+# Por defecto se asume ejecución dentro de Docker (compose separados).
+# Fuera de Docker, definir CLIENTES_URL=http://localhost:8082
+CLIENTES_URL = os.getenv("CLIENTES_URL", "http://host.docker.internal:8082")
+CLIENTES_CLAVE_LEADS = os.getenv("CLIENTES_CLAVE_LEADS")
+
+CLIENTES_TIMEOUT = 5.0
+CLIENTES_MAX_INTENTOS = 2
+
+
+def _error_configuracion() -> HTTPException:
+    """Error de configuración del servicio (clave faltante o rechazada)."""
+    logger.error("CLIENTES_CLAVE_LEADS faltante o inválida (401 de clientes)")
+    return HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail="Error de configuración del servicio.",
+    )
+
+
+def _armar_body_cliente(datos: CrearLeadDTO) -> dict:
+    """Arma el body para POST /clientes a partir del preformulario.
+
+    - cuil y consentimiento solo se incluyen si solicita_financiacion es True.
+    - Nunca se envía cuil como string vacío.
+    """
+    body = {
+        "nombre": datos.cliente.nombre,
+        "apellido": datos.cliente.apellido,
+        "email": datos.cliente.email,
+        "provincia": datos.ubicacion.provincia,
+    }
+    if datos.cliente.telefono:
+        body["telefono"] = datos.cliente.telefono
+    if datos.ubicacion.localidad:
+        body["localidad"] = datos.ubicacion.localidad
+    if datos.cliente.canal_origen:
+        body["canalOrigen"] = datos.cliente.canal_origen
+    if datos.solicita_financiacion:
+        body["cuil"] = datos.cliente.cuil
+        body["consentimiento"] = datos.cliente.consentimiento
+    return body
+
+
+async def _crear_cliente(
+    datos: CrearLeadDTO, correlation_id: str
+) -> UUID | JSONResponse:
+    """Llama al microservicio de clientes y devuelve el cliente_id.
+
+    Ante 422 devuelve un JSONResponse con el ProblemDetail recibido para
+    propagarlo al front. Ante otros errores lanza HTTPException.
+    """
+    if not CLIENTES_CLAVE_LEADS:
+        raise _error_configuracion()
+
+    body = _armar_body_cliente(datos)
+    headers = {
+        "X-Api-Key": CLIENTES_CLAVE_LEADS,
+        "X-Correlation-Id": correlation_id,
+    }
+
+    async with httpx.AsyncClient(timeout=CLIENTES_TIMEOUT) as client:
+        response: httpx.Response | None = None
+        for intento in range(1, CLIENTES_MAX_INTENTOS + 1):
+            try:
+                response = await client.post(
+                    f"{CLIENTES_URL}/clientes",
+                    json=body,
+                    headers=headers,
+                )
+            except (httpx.TimeoutException, httpx.TransportError) as exc:
+                logger.warning(
+                    "clientes no disponible (intento %d/%d): %s",
+                    intento,
+                    CLIENTES_MAX_INTENTOS,
+                    type(exc).__name__,
+                )
+                response = None
+            else:
+                if response.status_code < 500:
+                    break  # respuesta definitiva, no reintentar
+                logger.warning(
+                    "clientes respondió %d (intento %d/%d)",
+                    response.status_code,
+                    intento,
+                    CLIENTES_MAX_INTENTOS,
+                )
+
+    if response is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="El servicio de clientes no está disponible.",
+        )
+
+    if response.status_code in (status.HTTP_200_OK, status.HTTP_201_CREATED):
+        return UUID(response.json()["clienteId"])
+
+    if response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY:
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            content=response.json(),
+        )
+
+    if response.status_code == status.HTTP_401_UNAUTHORIZED:
+        raise _error_configuracion()
+
+    logger.error(
+        "clientes respondió %d: %s", response.status_code, response.text[:500]
+    )
+    raise HTTPException(
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        detail="El servicio de clientes rechazó la solicitud.",
+    )
 
 
 @router.post(
@@ -50,31 +164,57 @@ actualiza cuando llega el resultado vía Kafka.
             "description": "Preformulario aceptado y en procesamiento.",
             "model": LeadCreadoResponse,
         },
+        status.HTTP_422_UNPROCESSABLE_ENTITY: {
+            "description": "Datos inválidos (validación propia o del servicio de Clientes).",
+        },
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {
+            "description": "Error de configuración (clave de Clientes faltante o inválida).",
+        },
         status.HTTP_502_BAD_GATEWAY: {
             "description": "El microservicio de Clientes rechazó la creación del cliente.",
+        },
+        status.HTTP_503_SERVICE_UNAVAILABLE: {
+            "description": "El microservicio de Clientes no está disponible.",
         },
     },
 )
 async def crear_preformulario(
     datos: CrearLeadDTO,
+    request: Request,
     db=Depends(get_db),
 ):
     """Crea un nuevo preformulario de lead de forma asíncrona."""
-    # 1. Crear el cliente en el microservicio de clientes
-    async with httpx.AsyncClient() as client:
-        cliente_payload = datos.cliente.model_dump()
-        response = await client.post(
-            f"{CLIENTES_URL}/clientes",
-            json=cliente_payload,
-        )
-
-        if response.status_code != status.HTTP_201_CREATED:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"Error al crear el cliente: {response.text}",
+    # Validación propia: con financiación, cuil y consentimiento son obligatorios.
+    if datos.solicita_financiacion:
+        errores = []
+        if not datos.cliente.cuil:
+            errores.append(
+                {"campo": "cuil", "mensaje": "El CUIL es obligatorio cuando se solicita financiación."}
+            )
+        if datos.cliente.consentimiento is None:
+            errores.append(
+                {
+                    "campo": "consentimiento",
+                    "mensaje": "El consentimiento es obligatorio cuando se solicita financiación.",
+                }
+            )
+        if errores:
+            return JSONResponse(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                content={
+                    "status": 422,
+                    "codigo": "VALIDACION",
+                    "detail": "Datos inválidos para la solicitud de financiación.",
+                    "errores": errores,
+                },
             )
 
-        cliente_id = response.json().get("id")
+    # 1. Crear el cliente en el microservicio de clientes
+    correlation_id = request.headers.get("X-Correlation-Id") or str(uuid4())
+    resultado = await _crear_cliente(datos, correlation_id)
+    if isinstance(resultado, JSONResponse):
+        return resultado  # 422: se propaga el ProblemDetail al front
+    cliente_id = resultado
 
     # 2. Crear el lead en la base de datos
     nuevo_lead = Lead(

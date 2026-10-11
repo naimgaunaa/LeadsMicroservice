@@ -65,6 +65,7 @@ services:
       DATABASE_URL: postgresql://leads:leads@db:5432/leads
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_ENABLED: "true"
+      CLIENTES_URL: http://host.docker.internal:8082
     ports:
       - "8000:8000"
     depends_on:

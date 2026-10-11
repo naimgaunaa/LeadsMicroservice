@@ -7,9 +7,10 @@ class ClienteDTO(BaseModel):
     nombre: str
     apellido: str
     email: EmailStr
-    telefono: str
-    cuil: str
-    consentimiento: bool
+    telefono: Optional[str] = None
+    canal_origen: Optional[str] = None
+    cuil: Optional[str] = None
+    consentimiento: Optional[bool] = None
 
 class PermutaDTO(BaseModel):
     tiene_permuta: bool
@@ -18,7 +19,7 @@ class PermutaDTO(BaseModel):
 
 class UbicacionDTO(BaseModel):
     provincia: str
-    localidad: str
+    localidad: Optional[str] = None
 
 class CrearLeadDTO(BaseModel):
     cliente: ClienteDTO

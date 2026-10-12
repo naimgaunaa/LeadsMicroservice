@@ -1,5 +1,6 @@
 import logging
 import os
+from typing import Optional
 from uuid import UUID, uuid4
 
 import httpx
@@ -21,6 +22,26 @@ from app.services.estado_lead import cambiar_estado_lead as cambiar_estado_lead_
 from app.services.provincia import normalizar_provincia
 
 logger = logging.getLogger(__name__)
+
+# Orden de la cola de telemarketing: de mayor a menor potabilidad. Los niveles
+# desconocidos van al final.
+_ORDEN_NIVEL_COLA = {
+    NivelCalificacion.MUY_POTABLE.value: 0,
+    NivelCalificacion.POTABLE.value: 1,
+    NivelCalificacion.NO_POTABLE.value: 2,
+    NivelCalificacion.SIN_CALIFICACION.value: 3,
+}
+
+
+def _clave_orden_cola(lead: Lead) -> tuple:
+    """Clave de orden: nivel (potabilidad), puntaje descendente y antigüedad."""
+    puntaje = lead.puntaje if lead.puntaje is not None else -10**9
+    return (
+        _ORDEN_NIVEL_COLA.get(lead.nivel, 4),
+        -puntaje,
+        lead.creado_en,
+    )
+
 
 router = APIRouter(
     prefix="/leads",
@@ -263,30 +284,35 @@ async def crear_preformulario(
     "",
     response_model=list[LeadDetalleDTO],
     summary="Obtener cola de telemarketing",
-    description="""
-Devuelve la lista de leads filtrada por **estado** y **nivel de
-calificación**. Este endpoint alimenta la cola de trabajo de telemarketing.
+    description="""\
+Devuelve la lista de leads que alimenta la cola de trabajo de telemarketing,
+ordenada por nivel de potabilidad (descendente), puntaje (descendente) y
+antigüedad. Los filtros `estado` y `nivel` son **opcionales**: si se omiten se
+devuelven todos los leads. Esto evita que el front deba iterar sobre todas las
+combinaciones estado × nivel.
 """,
-    response_description="Lista de leads que coinciden con los filtros.",
+    response_description="Lista de leads que coinciden con los filtros, ya ordenada.",
 )
 async def obtener_cola_telemarketing(
-    estado: NombreEstados = Query(
-        ...,
-        description="Estado actual del lead.",
-        examples=["PENDIENTE"],
+    estado: Optional[NombreEstados] = Query(
+        None,
+        description="Estado actual del lead (opcional).",
+        examples=["CALIFICADO"],
     ),
-    nivel: NivelCalificacion = Query(
-        ...,
-        description="Nivel de calificación crediticia del lead.",
-        examples=["SIN_CALIFICACION"],
+    nivel: Optional[NivelCalificacion] = Query(
+        None,
+        description="Nivel de calificación crediticia del lead (opcional).",
+        examples=["MUY_POTABLE"],
     ),
     db=Depends(get_db),
 ):
-    leads = (
-        db.query(Lead)
-        .filter(Lead.estado == estado.value, Lead.nivel == nivel.value)
-        .all()
-    )
+    query = db.query(Lead)
+    if estado is not None:
+        query = query.filter(Lead.estado == estado.value)
+    if nivel is not None:
+        query = query.filter(Lead.nivel == nivel.value)
+    leads = query.all()
+    leads.sort(key=_clave_orden_cola)
     return leads
 
 

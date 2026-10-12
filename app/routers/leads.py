@@ -18,6 +18,7 @@ from app.schemas import (
     MensajeResponse,
 )
 from app.services.estado_lead import cambiar_estado_lead as cambiar_estado_lead_service
+from app.services.provincia import normalizar_provincia
 
 logger = logging.getLogger(__name__)
 
@@ -50,11 +51,12 @@ def _armar_body_cliente(datos: CrearLeadDTO) -> dict:
     - cuil y consentimiento solo se incluyen si solicita_financiacion es True.
     - Nunca se envía cuil como string vacío.
     """
+    provincia_normalizada = normalizar_provincia(datos.ubicacion.provincia)
     body = {
         "nombre": datos.cliente.nombre,
         "apellido": datos.cliente.apellido,
         "email": datos.cliente.email,
-        "provincia": datos.ubicacion.provincia,
+        "provincia": provincia_normalizada or datos.ubicacion.provincia,
     }
     if datos.cliente.telefono:
         body["telefono"] = datos.cliente.telefono
@@ -217,6 +219,7 @@ async def crear_preformulario(
     cliente_id = resultado
 
     # 2. Crear el lead en la base de datos
+    provincia_normalizada = normalizar_provincia(datos.ubicacion.provincia) or datos.ubicacion.provincia
     nuevo_lead = Lead(
         cliente_id=cliente_id,
         vehiculo_id=datos.vehiculo_id,
@@ -225,7 +228,7 @@ async def crear_preformulario(
         ficha_completa=True,
         estado=NombreEstados.PENDIENTE.value,
         nivel=NivelCalificacion.SIN_CALIFICACION.value,
-        provincia=datos.ubicacion.provincia,
+        provincia=provincia_normalizada,
         localidad=datos.ubicacion.localidad,
         permuta_tiene=datos.permuta.tiene_permuta,
         permuta_descripcion=datos.permuta.descripcion,
@@ -242,6 +245,14 @@ async def crear_preformulario(
         lead_id=str(nuevo_lead.id),
         cliente_id=str(cliente_id),
         vehiculo_id=str(datos.vehiculo_id),
+        anticipo=float(datos.anticipo),
+        solicita_financiacion=datos.solicita_financiacion,
+        provincia=provincia_normalizada,
+        monto_permuta=float(datos.permuta.valor_declarado)
+        if datos.permuta.valor_declarado is not None
+        else None,
+        permuta_no_computable=False,
+        correlation_id=correlation_id,
     )
 
     # 4. Responder 202 Accepted con el leadId

@@ -5,7 +5,7 @@ from typing import Optional
 
 from aiokafka import AIOKafkaConsumer
 from app.database import SessionLocal
-from app.kafka.config import kafka_enabled, kafka_settings
+from app.kafka.config import kafka_enabled, kafka_settings, _seguridad
 from app.model import Lead
 from app.model.nivel_calificacion import NivelCalificacion
 from app.model.nombre_estados import NombreEstados
@@ -20,7 +20,8 @@ async def handle_lead_calificado(message_value: dict) -> None:
     payload = message_value.get("payload", message_value)
     lead_id = payload.get("leadId")
     nivel = payload.get("nivel")
-    puntaje = payload.get("puntaje")
+    # calificacion publica "puntos"; se tolera también "puntaje" por compatibilidad.
+    puntaje = payload.get("puntos", payload.get("puntaje"))
     origen = payload.get("origen")
     motivos = payload.get("motivos", [])
 
@@ -85,6 +86,7 @@ async def start_consumer() -> None:
         client_id=kafka_settings.client_id,
         auto_offset_reset="earliest",
         value_deserializer=lambda value: value,
+        **_seguridad(),
     )
     await _consumer.start()
     logger.info(

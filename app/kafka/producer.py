@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 from aiokafka import AIOKafkaProducer
-from app.kafka.config import kafka_enabled, kafka_settings
+from app.kafka.config import kafka_enabled, kafka_settings, _seguridad
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +35,7 @@ async def get_producer() -> Optional[AIOKafkaProducer]:
             bootstrap_servers=kafka_settings.bootstrap_servers,
             client_id=kafka_settings.client_id,
             value_serializer=lambda value: json.dumps(value, default=str).encode("utf-8"),
+            **_seguridad(),
         )
         await _producer.start()
     return _producer
@@ -63,12 +64,30 @@ async def publish_preformulario_completado(
     lead_id: str,
     cliente_id: str,
     vehiculo_id: str,
+    *,
+    anticipo: float,
+    solicita_financiacion: bool,
+    provincia: str,
+    monto_permuta: Optional[float] = None,
+    permuta_no_computable: bool = False,
     correlation_id: Optional[str] = None,
 ) -> None:
+    """Publica PreformularioCompletado con todos los datos que calificacion necesita.
+
+    Viaja envuelto en el sobre común de integración (eventId, eventType,
+    correlationId, timestamp, payload). El payload incluye: leadId, clienteId,
+    vehiculoId, montoAnticipo, montoPermuta, permutaNoComputable,
+    solicitaFinanciacion y ubicacion.
+    """
     payload = {
         "leadId": str(lead_id),
         "clienteId": str(cliente_id),
         "vehiculoId": str(vehiculo_id),
+        "montoAnticipo": anticipo,
+        "montoPermuta": monto_permuta if monto_permuta is not None else 0,
+        "permutaNoComputable": permuta_no_computable,
+        "solicitaFinanciacion": solicita_financiacion,
+        "ubicacion": provincia,
     }
     await publish_event(
         topic=kafka_settings.topic_preformulario_completado,

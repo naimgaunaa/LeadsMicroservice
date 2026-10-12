@@ -13,11 +13,11 @@ engine_args = {}
 if DATABASE_URL.startswith("sqlite"):
     engine_args["connect_args"] = {"check_same_thread": False}
 else:
-    # Pool mínimo para una sola instancia: 1 conexión idle, 5 de máximo, con
-    # reciclado y timeout acotados para no retener conexiones en la base.
-    engine_args["pool_size"] = 5
+    # Pool mínimo para una sola instancia. El pooler de sesión de Supabase limita
+    # a 15 clientes, así que se usa un pool chico sin overflow y con reciclado.
+    engine_args["pool_size"] = 3
     engine_args["max_overflow"] = 0
-    engine_args["pool_recycle"] = 300
+    engine_args["pool_recycle"] = 180
     engine_args["pool_pre_ping"] = True
     engine_args["pool_timeout"] = 10
 

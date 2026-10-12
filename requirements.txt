@@ -12,6 +12,7 @@ aiokafka
 
 #---database---#
 SQLAlchemy
+psycopg[binary]
 
 #---http-client---#
 httpx

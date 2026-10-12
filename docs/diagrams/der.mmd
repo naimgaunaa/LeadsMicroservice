@@ -1,0 +1,25 @@
+erDiagram
+    %% Base de datos del servicio leads
+    %% Cliente y Vehiculo son referencias externas (UUIDs), no tablas propias
+    LEAD {
+        UUID id PK
+        UUID cliente_id "referencia externa al servicio clientes"
+        UUID vehiculo_id "referencia externa al servicio vehiculos"
+
+        float anticipo
+        boolean solicita_financiacion
+        boolean ficha_completa
+        int puntaje
+        string nivel
+        string estado
+
+        string provincia
+        string localidad
+
+        boolean permuta_tiene
+        string permuta_descripcion
+        float permuta_valor_declarado
+        boolean permuta_computable
+
+        DateTime creado_en
+    }

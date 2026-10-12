@@ -1,0 +1,23 @@
+%% Figura 6: ciclo de vida del lead en el servicio leads.
+%% Los estados finales (Derivado, Descartado) no tienen salidas.
+stateDiagram-v2
+    [*] --> Pendiente : LeadFactory crea el lead (POST /leads, 202)
+
+    Pendiente --> Calificado : calificacion publica LeadCalificado
+    Calificado --> EnGestion : tomar()
+    Calificado --> Descartado : descartar()
+    EnGestion --> Derivado : derivar() / solo con ficha completa (RF08)
+    EnGestion --> Descartado : descartar()
+
+    Derivado --> [*]
+    Descartado --> [*]
+
+    note right of Pendiente
+        Nivel y puntaje aún no calculados.
+        La cola lo muestra como PENDIENTE_CALIFICACION.
+    end note
+
+    note right of EnGestion
+        Una corrección manual de la calificación
+        no cambia el estado: solo nivel y puntaje.
+    end note

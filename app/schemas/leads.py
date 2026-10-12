@@ -2,8 +2,20 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic.alias_generators import to_camel
+
+# El contrato con el front usa camelCase (vehiculoId, solicitaFinanciacion,
+# tienePermuta, valorDeclarado). Con populate_by_name aceptamos tanto camelCase
+# como snake_case; la salida se serializa en snake_case por defecto.
+_camel_config = ConfigDict(
+    alias_generator=to_camel,
+    populate_by_name=True,
+)
+
 
 class ClienteDTO(BaseModel):
+    model_config = _camel_config
+
     nombre: str
     apellido: str
     email: EmailStr
@@ -12,16 +24,25 @@ class ClienteDTO(BaseModel):
     cuil: Optional[str] = None
     consentimiento: Optional[bool] = None
 
+
 class PermutaDTO(BaseModel):
+    model_config = _camel_config
+
     tiene_permuta: bool
     descripcion: Optional[str] = None
     valor_declarado: Optional[float] = None
 
+
 class UbicacionDTO(BaseModel):
+    model_config = _camel_config
+
     provincia: str
     localidad: Optional[str] = None
 
+
 class CrearLeadDTO(BaseModel):
+    model_config = _camel_config
+
     cliente: ClienteDTO
     vehiculo_id: UUID
     anticipo: float

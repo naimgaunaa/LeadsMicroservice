@@ -47,6 +47,12 @@ kafka_settings = KafkaSettings(
 
 kafka_enabled = _parse_bool(os.getenv("KAFKA_ENABLED"), default=True)
 
+# Tópicos a crear al arrancar (Aiven no auto-crea tópicos).
+kafka_topics = [
+    kafka_settings.topic_preformulario_completado,
+    kafka_settings.topic_lead_calificado,
+]
+
 
 def _seguridad() -> dict:
     """Argumentos de seguridad para aiokafka (SASL_SSL de Aiven y similares).

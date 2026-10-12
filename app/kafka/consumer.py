@@ -4,8 +4,9 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from aiokafka import AIOKafkaConsumer
+from aiokafka.admin import AIOKafkaAdminClient, NewTopic
 from app.database import SessionLocal
-from app.kafka.config import kafka_enabled, kafka_settings, _seguridad
+from app.kafka.config import kafka_enabled, kafka_settings, kafka_topics, _seguridad
 from app.model import Lead
 from app.model.nivel_calificacion import NivelCalificacion
 from app.model.nombre_estados import NombreEstados
@@ -71,6 +72,37 @@ async def consume_messages(consumer: AIOKafkaConsumer) -> None:
         await consumer.stop()
 
 
+async def _asegurar_topicos() -> None:
+    """Crea los tópicos que no existen (Aiven no auto-crea tópicos).
+
+    Si no se pueden crear (falta de permisos o broker caído), se registra el
+    error y se continúa: el arranque no debe depender de la creación.
+    """
+    try:
+        admin = AIOKafkaAdminClient(
+            bootstrap_servers=kafka_settings.bootstrap_servers,
+            client_id=f"{kafka_settings.client_id}-admin",
+            **_seguridad(),
+        )
+        await admin.start()
+        try:
+            existentes = set(await admin.list_topics())
+            nuevos = [
+                NewTopic(name=nombre, num_partitions=3, replication_factor=1)
+                for nombre in kafka_topics
+                if nombre not in existentes
+            ]
+            if nuevos:
+                await admin.create_topics(new_topics=nuevos)
+                logger.info("Tópicos creados: %s", [n.name for n in nuevos])
+            else:
+                logger.info("Tópicos ya existentes: %s", kafka_topics)
+        finally:
+            await admin.close()
+    except Exception as exc:
+        logger.warning("No se pudieron asegurar los tópicos de Kafka: %s", exc)
+
+
 async def start_consumer() -> None:
     global _consumer, _consumer_task
     if not kafka_enabled:
@@ -78,6 +110,8 @@ async def start_consumer() -> None:
         return
     if _consumer is not None:
         return
+
+    await _asegurar_topicos()
 
     _consumer = AIOKafkaConsumer(
         kafka_settings.topic_lead_calificado,

@@ -1,4 +1,5 @@
 import os
+import ssl
 from dataclasses import dataclass
 from typing import Optional
 
@@ -48,7 +49,11 @@ kafka_enabled = _parse_bool(os.getenv("KAFKA_ENABLED"), default=True)
 
 
 def _seguridad() -> dict:
-    """Argumentos de seguridad para aiokafka (SASL_SSL de Aiven y similares)."""
+    """Argumentos de seguridad para aiokafka (SASL_SSL de Aiven y similares).
+
+    aiokafka no acepta ``ssl_cafile`` como kwarg: hay que construir un
+    ``ssl.SSLContext`` y pasarlo como ``ssl_context``.
+    """
     if not kafka_settings.security_protocol:
         return {}
     args = {"security_protocol": kafka_settings.security_protocol}
@@ -59,5 +64,6 @@ def _seguridad() -> dict:
     if kafka_settings.sasl_password:
         args["sasl_plain_password"] = kafka_settings.sasl_password
     if kafka_settings.ssl_cafile:
-        args["ssl_cafile"] = kafka_settings.ssl_cafile
+        contexto = ssl.create_default_context(cafile=kafka_settings.ssl_cafile)
+        args["ssl_context"] = contexto
     return args

@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, Float, Boolean, Integer, String, DateTime
+from sqlalchemy import Column, Float, Boolean, Integer, String, DateTime, Text
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.database import Base
@@ -34,6 +34,9 @@ class Lead(Base):
     puntaje = Column(Integer, nullable=True)
     nivel = Column(String, nullable=True)
     estado = Column(String, nullable=False)
+
+    resumen = Column(Text, nullable=True)
+    resumen_generado_en = Column(DateTime, nullable=True)
 
     provincia = Column(String, nullable=True)
     localidad = Column(String, nullable=True)

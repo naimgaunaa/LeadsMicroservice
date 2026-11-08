@@ -27,6 +27,8 @@ cp .env.example .env
 | `KAFKA_BOOTSTRAP_SERVERS` | Servidores Kafka | `localhost:9092` |
 | `KAFKA_TOPIC_PREFORMULARIO_COMPLETADO` | Topic de salida | `preformulario-completado` |
 | `KAFKA_TOPIC_LEAD_CALIFICADO` | Topic de entrada | `lead-calificado` |
+| `KAFKA_TOPIC_RESUMEN_SOLICITADO` | Topic de salida (solicitud de resumen a IA) | `resumen-solicitado` |
+| `KAFKA_TOPIC_RESUMEN_GENERADO` | Topic de entrada (resumen generado por IA) | `resumen-generado` |
 | `KAFKA_CONSUMER_GROUP` | Grupo consumidor | `leads-service` |
 | `KAFKA_CLIENT_ID` | ID del cliente Kafka | `leads-microservice` |
 

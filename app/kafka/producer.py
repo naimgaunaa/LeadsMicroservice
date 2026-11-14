@@ -98,6 +98,43 @@ async def publish_preformulario_completado(
     )
 
 
+async def publish_resumen_solicitado(
+    lead,
+    correlation_id: Optional[str] = None,
+) -> None:
+    """Publica ResumenSolicitado para que el servicio de IA genere el resumen.
+
+    Se dispara cuando el lead queda CALIFICADO. El payload incluye los datos
+    comerciales que la IA necesita para armar el `ClientePotencial`; los datos
+    de contacto (nombre/apellido) y del vehículo (marca/modelo/anio) los
+    consulta la propia IA a `clientes` y `vehiculos` por REST a partir de los
+    IDs. Viaja envuelto en el sobre común de integración.
+    """
+    payload = {
+        "leadId": str(lead.id),
+        "clienteId": str(lead.cliente_id),
+        "vehiculoId": str(lead.vehiculo_id),
+        "anticipo": lead.anticipo,
+        "solicitaFinanciacion": lead.solicita_financiacion,
+        "permuta": {
+            "tienePermuta": lead.permuta_tiene,
+            "descripcion": lead.permuta_descripcion,
+            "valorDeclarado": lead.permuta_valor_declarado,
+        },
+        "ubicacion": {
+            "provincia": lead.provincia,
+            "localidad": lead.localidad,
+        },
+    }
+    await publish_event(
+        topic=kafka_settings.topic_resumen_solicitado,
+        key=str(lead.id),
+        event_type="ResumenSolicitado",
+        payload=payload,
+        correlation_id=correlation_id,
+    )
+
+
 async def stop_producer() -> None:
     global _producer
     if _producer is not None:

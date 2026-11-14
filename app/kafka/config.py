@@ -13,6 +13,8 @@ class KafkaSettings:
     bootstrap_servers: str
     topic_preformulario_completado: str
     topic_lead_calificado: str
+    topic_resumen_solicitado: str
+    topic_resumen_generado: str
     consumer_group_id: str
     client_id: Optional[str] = None
     security_protocol: Optional[str] = None
@@ -36,6 +38,12 @@ kafka_settings = KafkaSettings(
     topic_lead_calificado=os.getenv(
         "KAFKA_TOPIC_LEAD_CALIFICADO", "lead-calificado"
     ),
+    topic_resumen_solicitado=os.getenv(
+        "KAFKA_TOPIC_RESUMEN_SOLICITADO", "resumen-solicitado"
+    ),
+    topic_resumen_generado=os.getenv(
+        "KAFKA_TOPIC_RESUMEN_GENERADO", "resumen-generado"
+    ),
     consumer_group_id=os.getenv("KAFKA_CONSUMER_GROUP", "leads-service"),
     client_id=os.getenv("KAFKA_CLIENT_ID", "leads-microservice"),
     security_protocol=os.getenv("KAFKA_SECURITY_PROTOCOL"),
@@ -51,6 +59,8 @@ kafka_enabled = _parse_bool(os.getenv("KAFKA_ENABLED"), default=True)
 kafka_topics = [
     kafka_settings.topic_preformulario_completado,
     kafka_settings.topic_lead_calificado,
+    kafka_settings.topic_resumen_solicitado,
+    kafka_settings.topic_resumen_generado,
 ]
 
 

@@ -69,6 +69,8 @@ class LeadDetalleDTO(BaseModel):
     permuta_descripcion: Optional[str] = None
     permuta_valor_declarado: Optional[float] = None
     permuta_computable: Optional[bool] = None
+    resumen: Optional[str] = None
+    resumen_generado_en: Optional[datetime] = None
     creado_en: datetime
 
 

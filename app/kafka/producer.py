@@ -73,6 +73,7 @@ async def publish_preformulario_completado(
     provincia: str,
     monto_permuta: Optional[float] = None,
     permuta_no_computable: bool = False,
+    patente: Optional[str] = None,
     correlation_id: Optional[str] = None,
 ) -> None:
     """Publica PreformularioCompletado con todos los datos que calificacion necesita.
@@ -80,7 +81,7 @@ async def publish_preformulario_completado(
     Viaja envuelto en el sobre común de integración (eventId, eventType,
     correlationId, timestamp, payload). El payload incluye: leadId, clienteId,
     vehiculoId, montoAnticipo, montoPermuta, permutaNoComputable,
-    solicitaFinanciacion y ubicacion.
+    solicitaFinanciacion, ubicacion y patente (opcional).
     """
     payload = {
         "leadId": str(lead_id),
@@ -92,6 +93,8 @@ async def publish_preformulario_completado(
         "solicitaFinanciacion": solicita_financiacion,
         "ubicacion": provincia,
     }
+    if patente:
+        payload["patente"] = patente
     await publish_event(
         topic=kafka_settings.topic_eventos,
         key=str(lead_id),

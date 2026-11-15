@@ -23,6 +23,7 @@ class ClienteDTO(BaseModel):
     canal_origen: Optional[str] = None
     cuil: Optional[str] = None
     consentimiento: Optional[bool] = None
+    patente: Optional[str] = None
 
 
 class PermutaDTO(BaseModel):
@@ -65,6 +66,7 @@ class LeadDetalleDTO(BaseModel):
     estado: str
     provincia: Optional[str] = None
     localidad: Optional[str] = None
+    patente: Optional[str] = None
     permuta_tiene: bool
     permuta_descripcion: Optional[str] = None
     permuta_valor_declarado: Optional[float] = None

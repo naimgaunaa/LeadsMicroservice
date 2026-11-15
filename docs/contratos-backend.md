@@ -138,6 +138,7 @@ Es el servicio principal del front (RF01–RF03, RF07, RF08). **El Lead es la es
     "apellido": "López",
     "email": "martina@gmail.com",
     "telefono": "11 5555 5555",
+    "patente": "AB123CD",
     "cuil": "20-12345678-6",
     "consentimiento": true
   },
@@ -157,6 +158,7 @@ Es el servicio principal del front (RF01–RF03, RF07, RF08). **El Lead es la es
 ```
 
 - El bloque `cliente` es lo que `leads` reenvía a `clientes` (`POST /clientes`); lo demás queda en el Lead junto con el `clienteId` devuelto.
+- `patente` es opcional: es la patente del vehículo en parte de pago que tipea el prospecto. Se guarda en el Lead (no en `clientes`) y viaja en el evento `PreformularioCompletado`. Se normaliza a mayúsculas sin espacios ni guiones (formato `AAA123` o `AB123CD`).
 - `anticipo` y `valorDeclarado` son **números**, no strings con `$`. El front debe parsear lo que escribe el usuario.
 - `provincia` es un enum en el contrato de eventos (`"BUENOS_AIRES"`). El select actual guarda texto libre (`"Buenos Aires"`, `"CABA"`); hace falta un mapeo o que Iván acepte ambos. **[A confirmar]** lista de valores válidos.
 - `cuil` y `consentimiento` solo si `solicitaFinanciacion = true`, y en ese caso son **obligatorios**: el front valida el formato del CUIL (11 dígitos, prefijo 20, 23, 24 o 27 y dígito verificador) y exige el consentimiento, y el backend debe repetir esas validaciones. Si el prospecto no quiere compartirlos, vuelve atrás con "Seguir sin financiación": se envía sin ellos y el lead se califica igual, sin situación crediticia.

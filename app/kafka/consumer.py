@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from datetime import datetime, timezone
@@ -7,13 +8,15 @@ from aiokafka import AIOKafkaConsumer
 from aiokafka.admin import AIOKafkaAdminClient, NewTopic
 from app.database import SessionLocal
 from app.kafka.config import (
+    SERVICIO,
+    espera_reintento_segundos,
     kafka_enabled,
     kafka_settings,
     kafka_topics,
-    leads_publica_resumen,
+    reintentos_comando,
     _seguridad,
 )
-from app.kafka.producer import publish_resumen_solicitado
+from app.kafka.producer import publish_dlt
 from app.model import Lead
 from app.model.nivel_calificacion import NivelCalificacion
 from app.model.nombre_estados import NombreEstados
@@ -24,7 +27,8 @@ _consumer_task: Optional[object] = None
 _consumer: Optional[AIOKafkaConsumer] = None
 
 
-async def handle_lead_calificado(message_value: dict) -> None:
+async def handle_actualizar_calificacion(message_value: dict) -> None:
+    """Comando `ActualizarCalificacion`: guarda nivel, puntaje y estado CALIFICADO del lead."""
     payload = message_value.get("payload", message_value)
     lead_id = payload.get("leadId")
     nivel = payload.get("nivel")
@@ -55,18 +59,6 @@ async def handle_lead_calificado(message_value: dict) -> None:
                 nivel,
                 puntaje,
             )
-            # Con el lead calificado, pedir el resumen comercial a la IA, salvo que
-            # lo haga el orquestador (LEADS_PUBLICA_RESUMEN=false).
-            if leads_publica_resumen:
-                await publish_resumen_solicitado(
-                    lead,
-                    correlation_id=message_value.get("correlationId"),
-                )
-            else:
-                logger.info(
-                    "Resumen de leadId=%s: lo pide el orquestador (LEADS_PUBLICA_RESUMEN=false).",
-                    lead_id,
-                )
         else:
             logger.warning("Lead no encontrado para actualizar: leadId=%s", lead_id)
     except Exception as exc:
@@ -77,12 +69,13 @@ async def handle_lead_calificado(message_value: dict) -> None:
         db.close()
 
 
-async def handle_resumen_generado(message_value: dict) -> None:
+async def handle_guardar_resumen(message_value: dict) -> None:
+    """Comando `GuardarResumen`: guarda el resumen que generó la IA."""
     payload = message_value.get("payload", message_value)
     lead_id = payload.get("leadId")
     resumen = payload.get("resumen")
 
-    logger.info("Resumen generado recibido: leadId=%s", lead_id)
+    logger.info("Resumen a guardar recibido: leadId=%s", lead_id)
 
     if not resumen:
         logger.warning("Resumen vacío para leadId=%s; se ignora.", lead_id)
@@ -106,26 +99,56 @@ async def handle_resumen_generado(message_value: dict) -> None:
         db.close()
 
 
-async def _despachar(message_value: dict, topic: str) -> None:
-    """Despacha el mensaje según el tópico de origen."""
-    if topic == kafka_settings.topic_lead_calificado:
-        await handle_lead_calificado(message_value)
-    elif topic == kafka_settings.topic_resumen_generado:
-        await handle_resumen_generado(message_value)
-    else:
-        logger.warning("Mensaje de tópico no manejado: %s", topic)
+# Comandos que atiende leads (contrato: docs/08 del orquestador).
+_COMANDOS = {
+    "ActualizarCalificacion": handle_actualizar_calificacion,
+    "GuardarResumen": handle_guardar_resumen,
+}
+
+
+async def _despachar(message_value: dict) -> None:
+    """Atiende el comando si es para leads; ignora los de otros servicios y los que no conoce."""
+    if message_value.get("destino") != SERVICIO:
+        return
+    manejador = _COMANDOS.get(message_value.get("eventType"))
+    if manejador is None:
+        logger.warning("Comando desconocido para leads: %s", message_value.get("eventType"))
+        return
+    await manejador(message_value)
+
+
+async def _procesar_con_reintentos(message) -> None:
+    """Reintenta un comando que falla; si agota los intentos lo manda a `crm.dlt` y sigue con el siguiente."""
+    try:
+        value = json.loads(message.value.decode("utf-8"))
+    except json.JSONDecodeError as exc:
+        logger.error("Mensaje con JSON invalido en %s: %s", message.topic, exc)
+        return
+    if not isinstance(value, dict) or value.get("destino") != SERVICIO:
+        return  # no es para leads: sin trabajo ni logs de ruido
+    espera = espera_reintento_segundos
+    for intento in range(1, reintentos_comando + 1):
+        try:
+            await _despachar(value)
+            return
+        except Exception as exc:
+            logger.warning(
+                "Fallo %s (intento %s/%s): %s", value.get("eventType"), intento, reintentos_comando, exc
+            )
+            if intento < reintentos_comando:
+                await asyncio.sleep(espera)
+                espera *= 2
+    logger.error("Comando %s agotó sus reintentos: se envía a la DLT.", value.get("eventType"))
+    try:
+        await publish_dlt(message.value, message.key)
+    except Exception as exc:
+        logger.exception("No se pudo enviar el comando a la DLT: %s", exc)
 
 
 async def consume_messages(consumer: AIOKafkaConsumer) -> None:
     try:
         async for message in consumer:
-            try:
-                value = json.loads(message.value.decode("utf-8"))
-                await _despachar(value, message.topic)
-            except json.JSONDecodeError as exc:
-                logger.error("Mensaje con JSON invalido: %s", exc)
-            except Exception as exc:
-                logger.exception("Error procesando mensaje de %s: %s", message.topic, exc)
+            await _procesar_con_reintentos(message)
     finally:
         await consumer.stop()
 
@@ -172,8 +195,7 @@ async def start_consumer() -> None:
     await _asegurar_topicos()
 
     _consumer = AIOKafkaConsumer(
-        kafka_settings.topic_lead_calificado,
-        kafka_settings.topic_resumen_generado,
+        kafka_settings.topic_comandos,
         bootstrap_servers=kafka_settings.bootstrap_servers,
         group_id=kafka_settings.consumer_group_id,
         client_id=kafka_settings.client_id,
@@ -184,7 +206,7 @@ async def start_consumer() -> None:
     await _consumer.start()
     logger.info(
         "Consumer Kafka iniciado: topics=%s group_id=%s",
-        [kafka_settings.topic_lead_calificado, kafka_settings.topic_resumen_generado],
+        [kafka_settings.topic_comandos],
         kafka_settings.consumer_group_id,
     )
 

@@ -11,10 +11,9 @@ load_dotenv()
 @dataclass(frozen=True)
 class KafkaSettings:
     bootstrap_servers: str
-    topic_preformulario_completado: str
-    topic_lead_calificado: str
-    topic_resumen_solicitado: str
-    topic_resumen_generado: str
+    topic_comandos: str
+    topic_eventos: str
+    topic_dlt: str
     consumer_group_id: str
     client_id: Optional[str] = None
     security_protocol: Optional[str] = None
@@ -32,18 +31,11 @@ def _parse_bool(value: Optional[str], default: bool = False) -> bool:
 
 kafka_settings = KafkaSettings(
     bootstrap_servers=os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"),
-    topic_preformulario_completado=os.getenv(
-        "KAFKA_TOPIC_PREFORMULARIO_COMPLETADO", "preformulario-completado"
-    ),
-    topic_lead_calificado=os.getenv(
-        "KAFKA_TOPIC_LEAD_CALIFICADO", "lead-calificado"
-    ),
-    topic_resumen_solicitado=os.getenv(
-        "KAFKA_TOPIC_RESUMEN_SOLICITADO", "resumen-solicitado"
-    ),
-    topic_resumen_generado=os.getenv(
-        "KAFKA_TOPIC_RESUMEN_GENERADO", "resumen-generado"
-    ),
+    # Los tres tópicos del ecosistema (contrato: docs/08 del orquestador): leads escucha comandos,
+    # publica hechos en eventos y manda a la dlt lo que agotó sus reintentos.
+    topic_comandos=os.getenv("KAFKA_TOPICO_COMANDOS", "crm.comandos"),
+    topic_eventos=os.getenv("KAFKA_TOPICO_EVENTOS", "crm.eventos"),
+    topic_dlt=os.getenv("KAFKA_TOPICO_DLT", "crm.dlt"),
     consumer_group_id=os.getenv("KAFKA_CONSUMER_GROUP", "leads-service"),
     client_id=os.getenv("KAFKA_CLIENT_ID", "leads-microservice"),
     security_protocol=os.getenv("KAFKA_SECURITY_PROTOCOL"),
@@ -55,17 +47,18 @@ kafka_settings = KafkaSettings(
 
 kafka_enabled = _parse_bool(os.getenv("KAFKA_ENABLED"), default=True)
 
-# Quién pide el resumen a la IA al calificarse un lead. Con true (por defecto) lo publica
-# leads, como siempre; con false lo publica el orquestador (ORQUESTADOR_PUBLICA_RESUMEN=true
-# allá). Nunca los dos a la vez: el resumen se generaría dos veces.
-leads_publica_resumen = _parse_bool(os.getenv("LEADS_PUBLICA_RESUMEN"), default=True)
+# Nombre con el que el orquestador identifica a este servicio en el `destino` de los comandos.
+SERVICIO = "leads"
+
+# Intentos de procesar un comando antes de mandarlo a la DLT, y espera inicial (se duplica en cada intento).
+reintentos_comando = int(os.getenv("KAFKA_REINTENTOS_COMANDO", "3"))
+espera_reintento_segundos = float(os.getenv("KAFKA_ESPERA_REINTENTO_SEGUNDOS", "1"))
 
 # Tópicos a crear al arrancar (Aiven no auto-crea tópicos).
 kafka_topics = [
-    kafka_settings.topic_preformulario_completado,
-    kafka_settings.topic_lead_calificado,
-    kafka_settings.topic_resumen_solicitado,
-    kafka_settings.topic_resumen_generado,
+    kafka_settings.topic_comandos,
+    kafka_settings.topic_eventos,
+    kafka_settings.topic_dlt,
 ]
 
 

@@ -26,11 +26,10 @@ cp .env.example .env
 | `VEHICLE_MICROSERVICE` | URL del microservicio de vehículos | `http://localhost:1001` |
 | `BCRA_API` | Host de la API BCRA | `api.bcra.gob.ar` |
 | `KAFKA_BOOTSTRAP_SERVERS` | Servidores Kafka | `localhost:9092` |
-| `KAFKA_TOPIC_PREFORMULARIO_COMPLETADO` | Topic de salida | `preformulario-completado` |
-| `KAFKA_TOPIC_LEAD_CALIFICADO` | Topic de entrada | `lead-calificado` |
-| `KAFKA_TOPIC_RESUMEN_SOLICITADO` | Topic de salida (solicitud de resumen a IA) | `resumen-solicitado` |
-| `KAFKA_TOPIC_RESUMEN_GENERADO` | Topic de entrada (resumen generado por IA) | `resumen-generado` |
-| `LEADS_PUBLICA_RESUMEN` | Quién pide el resumen a la IA al calificarse el lead. `true` (por defecto): lo publica leads. `false`: lo publica el orquestador (`ORQUESTADOR_PUBLICA_RESUMEN=true` allá). Nunca los dos a la vez | `true` |
+| `KAFKA_TOPICO_COMANDOS` | Topic de entrada: las órdenes del orquestador. Leads atiende `ActualizarCalificacion` y `GuardarResumen` (con `destino: leads`) e ignora el resto | `crm.comandos` |
+| `KAFKA_TOPICO_EVENTOS` | Topic de salida: publica el evento `PreformularioCompletado` | `crm.eventos` |
+| `KAFKA_TOPICO_DLT` | Topic al que manda el comando que agotó sus reintentos | `crm.dlt` |
+| `KAFKA_REINTENTOS_COMANDO` / `KAFKA_ESPERA_REINTENTO_SEGUNDOS` | Intentos antes de mandar a la DLT y espera inicial (se duplica) | `3` / `1` |
 | `KAFKA_CONSUMER_GROUP` | Grupo consumidor | `leads-service` |
 | `KAFKA_CLIENT_ID` | ID del cliente Kafka | `leads-microservice` |
 

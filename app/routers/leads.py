@@ -52,6 +52,9 @@ router = APIRouter(
 # Fuera de Docker, definir CLIENTES_URL=http://localhost:8082
 CLIENTES_URL = os.getenv("CLIENTES_URL", "http://host.docker.internal:8082")
 CLIENTES_CLAVE_LEADS = os.getenv("CLIENTES_CLAVE_LEADS")
+# Credencial de leads ante el orquestador (el API Gateway). Si CLIENTES_URL apunta al orquestador
+# (<orquestador>/api) es obligatoria; si se llama a clientes directo, se deja vacía.
+ORQUESTADOR_CLAVE_SERVICIO = os.getenv("ORQUESTADOR_CLAVE_SERVICIO")
 
 CLIENTES_TIMEOUT = 5.0
 CLIENTES_MAX_INTENTOS = 2
@@ -107,6 +110,10 @@ async def _crear_cliente(
         "X-Api-Key": CLIENTES_CLAVE_LEADS,
         "X-Correlation-Id": correlation_id,
     }
+    if ORQUESTADOR_CLAVE_SERVICIO:
+        # Así el orquestador sabe que llama leads (y no cualquiera) y lo deja pasar sin login.
+        headers["X-Origen-Servicio"] = "leads"
+        headers["X-Clave-Servicio"] = ORQUESTADOR_CLAVE_SERVICIO
 
     async with httpx.AsyncClient(timeout=CLIENTES_TIMEOUT) as client:
         response: httpx.Response | None = None

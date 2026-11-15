@@ -22,6 +22,7 @@ cp .env.example .env
 | `DATABASE_URL` | URL de conexión a la base de datos | `postgresql://user:pass@localhost:5432/leads` |
 | `FRONTEND_LIST` | Orígenes permitidos para CORS | `["http://localhost:5173"]` |
 | `CLIENTES_URL` / `CLIENT_MICROSERVICE` | URL del microservicio de clientes | `http://localhost:8001` |
+| `ORQUESTADOR_CLAVE_SERVICIO` | Credencial de leads ante el orquestador (API Gateway). Obligatoria si `CLIENTES_URL` apunta al orquestador (`<orquestador>/api`): se manda en `X-Clave-Servicio`, junto con `X-Origen-Servicio: leads`. Vacía si se llama a clientes directo | `(32+ caracteres)` |
 | `VEHICLE_MICROSERVICE` | URL del microservicio de vehículos | `http://localhost:1001` |
 | `BCRA_API` | Host de la API BCRA | `api.bcra.gob.ar` |
 | `KAFKA_BOOTSTRAP_SERVERS` | Servidores Kafka | `localhost:9092` |

@@ -5,6 +5,8 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
 
 from app.database import Base, engine
 from app.kafka import start_consumer, stop_consumer, stop_producer
@@ -50,5 +52,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+
+@app.get("/health", tags=["Salud"], summary="Estado del servicio y su base de datos")
+def health():
+    """Para el monitor y el orquestador: `status` al estilo Actuator (UP / DOWN)."""
+    try:
+        with engine.connect() as conexion:
+            conexion.execute(text("SELECT 1"))
+    except Exception:
+        return JSONResponse(
+            status_code=503, content={"status": "DOWN", "servicio": "leads", "componentes": {"db": {"status": "DOWN"}}}
+        )
+    return {"status": "UP", "servicio": "leads", "componentes": {"db": {"status": "UP"}}}
+
 
 app.include_router(leads.router)

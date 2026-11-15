@@ -30,6 +30,7 @@ cp .env.example .env
 | `KAFKA_TOPIC_LEAD_CALIFICADO` | Topic de entrada | `lead-calificado` |
 | `KAFKA_TOPIC_RESUMEN_SOLICITADO` | Topic de salida (solicitud de resumen a IA) | `resumen-solicitado` |
 | `KAFKA_TOPIC_RESUMEN_GENERADO` | Topic de entrada (resumen generado por IA) | `resumen-generado` |
+| `LEADS_PUBLICA_RESUMEN` | Quién pide el resumen a la IA al calificarse el lead. `true` (por defecto): lo publica leads. `false`: lo publica el orquestador (`ORQUESTADOR_PUBLICA_RESUMEN=true` allá). Nunca los dos a la vez | `true` |
 | `KAFKA_CONSUMER_GROUP` | Grupo consumidor | `leads-service` |
 | `KAFKA_CLIENT_ID` | ID del cliente Kafka | `leads-microservice` |
 

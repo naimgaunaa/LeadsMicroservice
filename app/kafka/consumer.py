@@ -6,7 +6,13 @@ from typing import Optional
 from aiokafka import AIOKafkaConsumer
 from aiokafka.admin import AIOKafkaAdminClient, NewTopic
 from app.database import SessionLocal
-from app.kafka.config import kafka_enabled, kafka_settings, kafka_topics, _seguridad
+from app.kafka.config import (
+    kafka_enabled,
+    kafka_settings,
+    kafka_topics,
+    leads_publica_resumen,
+    _seguridad,
+)
 from app.kafka.producer import publish_resumen_solicitado
 from app.model import Lead
 from app.model.nivel_calificacion import NivelCalificacion
@@ -49,11 +55,18 @@ async def handle_lead_calificado(message_value: dict) -> None:
                 nivel,
                 puntaje,
             )
-            # Con el lead calificado, pedir el resumen comercial a la IA.
-            await publish_resumen_solicitado(
-                lead,
-                correlation_id=message_value.get("correlationId"),
-            )
+            # Con el lead calificado, pedir el resumen comercial a la IA, salvo que
+            # lo haga el orquestador (LEADS_PUBLICA_RESUMEN=false).
+            if leads_publica_resumen:
+                await publish_resumen_solicitado(
+                    lead,
+                    correlation_id=message_value.get("correlationId"),
+                )
+            else:
+                logger.info(
+                    "Resumen de leadId=%s: lo pide el orquestador (LEADS_PUBLICA_RESUMEN=false).",
+                    lead_id,
+                )
         else:
             logger.warning("Lead no encontrado para actualizar: leadId=%s", lead_id)
     except Exception as exc:

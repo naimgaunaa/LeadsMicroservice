@@ -55,6 +55,11 @@ kafka_settings = KafkaSettings(
 
 kafka_enabled = _parse_bool(os.getenv("KAFKA_ENABLED"), default=True)
 
+# Quién pide el resumen a la IA al calificarse un lead. Con true (por defecto) lo publica
+# leads, como siempre; con false lo publica el orquestador (ORQUESTADOR_PUBLICA_RESUMEN=true
+# allá). Nunca los dos a la vez: el resumen se generaría dos veces.
+leads_publica_resumen = _parse_bool(os.getenv("LEADS_PUBLICA_RESUMEN"), default=True)
+
 # Tópicos a crear al arrancar (Aiven no auto-crea tópicos).
 kafka_topics = [
     kafka_settings.topic_preformulario_completado,

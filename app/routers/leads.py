@@ -19,6 +19,7 @@ from app.schemas import (
     MensajeResponse,
 )
 from app.services.estado_lead import cambiar_estado_lead as cambiar_estado_lead_service
+from app.services.patente import normalizar_patente
 from app.services.provincia import normalizar_provincia
 
 logger = logging.getLogger(__name__)
@@ -248,6 +249,25 @@ async def crear_preformulario(
 
     # 2. Crear el lead en la base de datos
     provincia_normalizada = normalizar_provincia(datos.ubicacion.provincia) or datos.ubicacion.provincia
+    # La patente se normaliza (sin espacios/guiones, mayúsculas). Si viene vacía
+    # queda None; si viene inválida se rechaza como dato inválido.
+    try:
+        patente_normalizada = normalizar_patente(datos.cliente.patente)
+    except ValueError:
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            content={
+                "status": 422,
+                "codigo": "VALIDACION",
+                "detail": "Datos inválidos del preformulario.",
+                "errores": [
+                    {
+                        "campo": "patente",
+                        "mensaje": "La patente debe tener el formato AAA123 o AB123CD.",
+                    }
+                ],
+            },
+        )
     nuevo_lead = Lead(
         cliente_id=cliente_id,
         vehiculo_id=datos.vehiculo_id,
@@ -258,6 +278,7 @@ async def crear_preformulario(
         nivel=NivelCalificacion.SIN_CALIFICACION.value,
         provincia=provincia_normalizada,
         localidad=datos.ubicacion.localidad,
+        patente=patente_normalizada,
         permuta_tiene=datos.permuta.tiene_permuta,
         permuta_descripcion=datos.permuta.descripcion,
         permuta_valor_declarado=datos.permuta.valor_declarado,
@@ -280,6 +301,7 @@ async def crear_preformulario(
         if datos.permuta.valor_declarado is not None
         else None,
         permuta_no_computable=False,
+        patente=patente_normalizada,
         correlation_id=correlation_id,
     )
 

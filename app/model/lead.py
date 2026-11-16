@@ -41,6 +41,12 @@ class Lead(Base):
     provincia = Column(String, nullable=True)
     localidad = Column(String, nullable=True)
 
+    patente = Column(
+        String,
+        nullable=True,
+        comment="patente del vehículo en parte de pago que tipea el prospecto",
+    )
+
     permuta_tiene = Column(Boolean, nullable=False)
     permuta_descripcion = Column(String, nullable=True)
     permuta_valor_declarado = Column(Float, nullable=True)
